@@ -1,0 +1,551 @@
+-- Harry Hub | Roblox Studio 自製遊戲版
+-- 移動速度、飛行、穿牆、拖曳、最小化、關閉、重生保留狀態
+-- 放在 StarterPlayer > StarterPlayerScripts > LocalScript
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+if not player then return end
+
+local playerGui = player:WaitForChild("PlayerGui")
+local oldGui = playerGui:FindFirstChild("HarryHub")
+if oldGui then oldGui:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "HarryHub"
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 999
+gui.Parent = playerGui
+
+-- 主介面
+local main = Instance.new("Frame")
+main.Size = UDim2.fromOffset(360, 390)
+main.Position = UDim2.new(0.5, -180, 0.5, -195)
+main.BackgroundColor3 = Color3.fromRGB(20, 20, 23)
+main.BorderSizePixel = 0
+main.Active = true
+main.Parent = gui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(220, 35, 45)
+stroke.Thickness = 1.5
+
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 42)
+header.BackgroundColor3 = Color3.fromRGB(125, 20, 30)
+header.BorderSizePixel = 0
+header.Active = true
+header.Parent = main
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 10)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -100, 1, 0)
+title.Position = UDim2.fromOffset(12, 0)
+title.BackgroundTransparency = 1
+title.Text = "Harry 介面"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = header
+
+local function makeButton(parent, name, text, pos, size, color)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Position = pos
+    button.Size = size
+    button.BackgroundColor3 = color
+    button.BorderSizePixel = 0
+    button.Text = text
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.TextSize = 14
+    button.Font = Enum.Font.GothamBold
+    button.Parent = parent
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 6)
+    return button
+end
+
+local minimize = makeButton(
+    header, "最小化", "－",
+    UDim2.new(1, -68, 0, 8),
+    UDim2.fromOffset(28, 26),
+    Color3.fromRGB(75, 25, 30)
+)
+
+local close = makeButton(
+    header, "關閉", "✕",
+    UDim2.new(1, -34, 0, 8),
+    UDim2.fromOffset(28, 26),
+    Color3.fromRGB(190, 35, 45)
+)
+
+local content = Instance.new("Frame")
+content.Position = UDim2.fromOffset(12, 52)
+content.Size = UDim2.new(1, -24, 1, -62)
+content.BackgroundTransparency = 1
+content.Parent = main
+
+local function makeLabel(text, y, width)
+    local label = Instance.new("TextLabel")
+    label.Position = UDim2.fromOffset(0, y)
+    label.Size = UDim2.new(1, 0, 0, 22)
+    if width then
+        label.Size = UDim2.fromOffset(width, 22)
+    end
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    label.TextSize = 14
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = content
+    return label
+end
+
+local function makeInput(name, default, y)
+    local box = Instance.new("TextBox")
+    box.Name = name
+    box.Position = UDim2.fromOffset(0, y)
+    box.Size = UDim2.fromOffset(145, 34)
+    box.BackgroundColor3 = Color3.fromRGB(42, 42, 46)
+    box.BorderSizePixel = 0
+    box.Text = default
+    box.PlaceholderText = "輸入 1～100000"
+    box.TextColor3 = Color3.new(1, 1, 1)
+    box.TextSize = 14
+    box.Font = Enum.Font.Gotham
+    box.ClearTextOnFocus = false
+    box.Parent = content
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+    return box
+end
+
+-- 移動速度
+makeLabel("移動速度（1～100000）", 0, 205)
+local baseLabel = makeLabel("基礎值：16", 0)
+baseLabel.Position = UDim2.fromOffset(210, 0)
+baseLabel.Size = UDim2.fromOffset(120, 22)
+baseLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+
+local walkBox = makeInput("移動速度輸入", "16", 24)
+
+local walkApply = makeButton(
+    content, "套用移動速度", "套用速度",
+    UDim2.fromOffset(155, 24),
+    UDim2.new(1, -155, 0, 34),
+    Color3.fromRGB(180, 30, 42)
+)
+
+local walkStatus = makeLabel("目前移動速度：16", 60)
+
+-- 飛行速度
+makeLabel("飛行速度（1～100000）", 87)
+
+local flyBox = makeInput("飛行速度輸入", "50", 111)
+
+local flyApply = makeButton(
+    content, "套用飛行速度", "套用飛行速度",
+    UDim2.fromOffset(155, 111),
+    UDim2.new(1, -155, 0, 34),
+    Color3.fromRGB(180, 30, 42)
+)
+
+local flyStatus = makeLabel("目前飛行速度：50", 147)
+
+local flyToggle = makeButton(
+    content, "飛行開關", "飛行：已關閉",
+    UDim2.fromOffset(0, 176),
+    UDim2.new(1, 0, 0, 34),
+    Color3.fromRGB(42, 42, 46)
+)
+
+makeLabel("WASD 移動，鏡頭控制方向", 213)
+
+local noclipToggle = makeButton(
+    content, "穿牆開關", "穿牆：已關閉",
+    UDim2.fromOffset(0, 242),
+    UDim2.new(1, 0, 0, 34),
+    Color3.fromRGB(42, 42, 46)
+)
+
+makeLabel("穿牆會關閉角色自身碰撞", 281)
+
+-- 狀態
+local walkSpeed = 16
+local flySpeed = 50
+local flying = false
+local noclipEnabled = false
+local minimizedState = false
+local closed = false
+
+local flightConnection
+local noclipConnection
+local noclipDescendantConnection
+local bodyVelocity
+
+local oldAutoRotate
+local oldPlatformStand
+local oldCollisions = {}
+
+-- 取得角色
+local function getCharacterParts()
+    local character = player.Character
+    if not character then
+        return nil, nil, nil
+    end
+
+    return character,
+        character:FindFirstChildOfClass("Humanoid"),
+        character:FindFirstChild("HumanoidRootPart")
+end
+
+-- 驗證速度
+local function parseSpeed(box, status, label)
+    local n = tonumber(box.Text)
+
+    if not n or n < 1 or n > 100000 or n % 1 ~= 0 then
+        status.Text = "請輸入 1～100000 的整數"
+        return nil
+    end
+
+    status.Text = label .. "：" .. n
+    return n
+end
+
+walkApply.Activated:Connect(function()
+    local n = parseSpeed(
+        walkBox, walkStatus, "目前移動速度"
+    )
+    if not n then return end
+
+    walkSpeed = n
+
+    local _, humanoid = getCharacterParts()
+    if humanoid then
+        humanoid.WalkSpeed = n
+    end
+end)
+
+flyApply.Activated:Connect(function()
+    local n = parseSpeed(
+        flyBox, flyStatus, "目前飛行速度"
+    )
+    if n then
+        flySpeed = n
+    end
+end)
+
+-- 飛行
+local function stopFlying()
+    flying = false
+
+    if flightConnection then
+        flightConnection:Disconnect()
+        flightConnection = nil
+    end
+
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+        bodyVelocity = nil
+    end
+
+    local _, humanoid, root = getCharacterParts()
+
+    if humanoid then
+        if oldPlatformStand ~= nil then
+            humanoid.PlatformStand = oldPlatformStand
+        end
+        if oldAutoRotate ~= nil then
+            humanoid.AutoRotate = oldAutoRotate
+        end
+    end
+
+    if root then
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end
+
+    flyToggle.Text = "飛行：已關閉"
+    flyToggle.BackgroundColor3 = Color3.fromRGB(42, 42, 46)
+end
+
+local function startFlying()
+    local _, humanoid, root = getCharacterParts()
+
+    if not humanoid or not root then
+        flyStatus.Text = "找不到角色，請重新嘗試"
+        return
+    end
+
+    oldAutoRotate = humanoid.AutoRotate
+    oldPlatformStand = humanoid.PlatformStand
+
+    humanoid.AutoRotate = false
+    humanoid.PlatformStand = true
+
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Name = "HarryHubFlightVelocity"
+    bodyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+    bodyVelocity.P = 1e5
+    bodyVelocity.Velocity = Vector3.zero
+    bodyVelocity.Parent = root
+
+    flying = true
+    flyToggle.Text = "飛行：已開啟"
+    flyToggle.BackgroundColor3 = Color3.fromRGB(150, 25, 35)
+
+    flightConnection = RunService.Heartbeat:Connect(function()
+        if closed or not flying or not root.Parent or not bodyVelocity then
+            stopFlying()
+            return
+        end
+
+        local camera = Workspace.CurrentCamera
+        if not camera then return end
+
+        local cf = camera.CFrame
+        local direction = Vector3.zero
+
+        if UIS:IsKeyDown(Enum.KeyCode.W) then
+            direction += cf.LookVector
+        end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then
+            direction -= cf.LookVector
+        end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then
+            direction += cf.RightVector
+        end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then
+            direction -= cf.RightVector
+        end
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then
+            direction += Vector3.yAxis
+        end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+            direction -= Vector3.yAxis
+        end
+
+        if direction.Magnitude > 0 then
+            direction = direction.Unit
+        end
+
+        -- 靜止時速度為零，由 BodyVelocity 抵銷重力
+        bodyVelocity.Velocity = direction * flySpeed
+
+        local look = Vector3.new(
+            cf.LookVector.X, 0, cf.LookVector.Z
+        )
+
+        if look.Magnitude > 0.001 then
+            root.CFrame = CFrame.lookAt(
+                root.Position,
+                root.Position + look.Unit
+            )
+        end
+
+        root.AssemblyAngularVelocity = Vector3.zero
+    end)
+end
+
+flyToggle.Activated:Connect(function()
+    if flying then
+        stopFlying()
+    else
+        startFlying()
+    end
+end)
+
+-- 穿牆：保存原本碰撞狀態，關閉時還原
+local function applyNoclipToPart(character, part)
+    if not noclipEnabled or not part:IsA("BasePart") then
+        return
+    end
+
+    oldCollisions[character] = oldCollisions[character] or {}
+    local saved = oldCollisions[character]
+
+    if saved[part] == nil then
+        saved[part] = part.CanCollide
+    end
+
+    part.CanCollide = false
+end
+
+local function applyNoclipToCharacter(character)
+    if not noclipEnabled or not character then
+        return
+    end
+
+    -- 先斷開舊角色的新增零件監聽
+    if noclipDescendantConnection then
+        noclipDescendantConnection:Disconnect()
+        noclipDescendantConnection = nil
+    end
+
+    for _, part in ipairs(character:GetDescendants()) do
+        applyNoclipToPart(character, part)
+    end
+
+    -- 新增的身體零件也立即套用穿牆
+    noclipDescendantConnection = character.DescendantAdded:Connect(
+        function(part)
+            applyNoclipToPart(character, part)
+        end
+    )
+end
+
+local function restoreAllCollisions()
+    for character, saved in pairs(oldCollisions) do
+        for part, original in pairs(saved) do
+            if part and part.Parent then
+                part.CanCollide = original
+            end
+        end
+
+        oldCollisions[character] = nil
+    end
+end
+
+local function setNoclip(enabled)
+    noclipEnabled = enabled
+
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+
+    if noclipDescendantConnection then
+        noclipDescendantConnection:Disconnect()
+        noclipDescendantConnection = nil
+    end
+
+    if not enabled then
+        restoreAllCollisions()
+
+        noclipToggle.Text = "穿牆：已關閉"
+        noclipToggle.BackgroundColor3 = Color3.fromRGB(42, 42, 46)
+        return
+    end
+
+    noclipToggle.Text = "穿牆：已開啟"
+    noclipToggle.BackgroundColor3 = Color3.fromRGB(150, 25, 35)
+
+    if player.Character then
+        applyNoclipToCharacter(player.Character)
+    end
+
+    -- 物理更新前處理碰撞，避免每幀修改 CFrame
+    noclipConnection = RunService.Stepped:Connect(function()
+        if closed or not noclipEnabled then return end
+
+        local character = player.Character
+        if not character then return end
+
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                applyNoclipToPart(character, part)
+            end
+        end
+    end)
+end
+
+noclipToggle.Activated:Connect(function()
+    setNoclip(not noclipEnabled)
+end)
+
+-- 重生：保留 GUI、移動速度及穿牆狀態
+player.CharacterAdded:Connect(function(character)
+    if flying then
+        stopFlying()
+    end
+
+    local humanoid = character:WaitForChild("Humanoid", 10)
+    if humanoid and not closed then
+        humanoid.WalkSpeed = walkSpeed
+    end
+
+    if noclipEnabled and not closed then
+        applyNoclipToCharacter(character)
+    end
+end)
+
+-- 最小化
+minimize.Activated:Connect(function()
+    minimizedState = not minimizedState
+    content.Visible = not minimizedState
+
+    main.Size = minimizedState
+        and UDim2.fromOffset(360, 42)
+        or UDim2.fromOffset(360, 390)
+
+    minimize.Text = minimizedState and "+" or "－"
+end)
+
+-- 關閉並清理
+close.Activated:Connect(function()
+    if closed then return end
+    closed = true
+
+    stopFlying()
+    setNoclip(false)
+
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+
+    if noclipDescendantConnection then
+        noclipDescendantConnection:Disconnect()
+        noclipDescendantConnection = nil
+    end
+
+    gui:Destroy()
+end)
+
+-- 拖曳視窗
+local dragging = false
+local dragStart
+local startPosition
+local dragInputConnection
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+        dragging = true
+        dragStart = input.Position
+        startPosition = main.Position
+
+        if dragInputConnection then
+            dragInputConnection:Disconnect()
+        end
+
+        dragInputConnection = input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragging and (
+        input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+        local delta = input.Position - dragStart
+
+        main.Position = UDim2.new(
+            startPosition.X.Scale,
+            startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale,
+            startPosition.Y.Offset + delta.Y
+        )
+    end
+end)
+
+print("Harry Hub 已載入")
